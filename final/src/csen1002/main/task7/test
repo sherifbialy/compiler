@@ -1,0 +1,88 @@
+package csen1002.main.task7;
+
+import java.util.*;
+
+public class CfgLl1Parser {
+
+    private final Map<String, Map<String, String>> LL1table;
+
+    public CfgLl1Parser(String input) {
+        LL1table = new HashMap<>();
+        String[] parts = input.split("#");
+
+        String[] vars = parts[0].split(";");
+        String[] terminals = parts[1].split(";");
+        String[] rules = parts[2].split(";");
+        String[] firstSets = parts[3].split(";");
+        String[] followSets = parts[4].split(";");
+
+        ArrayList<String> terminalList = new ArrayList<>(Arrays.asList(terminals));
+        terminalList.add("$");
+
+        // Create LL(1) parsing table
+        for (String var : vars) {
+            Map<String, String> row = new HashMap<>();
+            for (String terminal : terminalList) {
+                row.put(terminal, "");
+            }
+            LL1table.put(var, row);
+        }
+
+        // Fill in the parsing table using first and follow sets
+        for (int i = 0; i < rules.length; i++) {
+            String[] ruleSplit = rules[i].split("/");
+            String var = ruleSplit[0];
+            String[] ruleList = ruleSplit[1].split(",");
+            String[] firstList = firstSets[i].split("/")[1].split(",");
+            String[] followList = followSets[i].split("/")[1].split(",");
+
+            Map<String, String> row = LL1table.get(var);
+            for (int j = 0; j < ruleList.length; j++) {
+                String rule = ruleList[j];
+                for (String first : firstList[j].split("")) {
+                    if (!first.equals("e") && !rule.equals("e")) {
+                        row.put(first, rule);
+                    }
+                }
+                if (firstList[j].contains("e")) {
+                    for (String follow : followList) {
+                        row.put(follow, "e");
+                    }
+                }
+            }
+        }
+    }
+
+    public String parse(String input) {
+        // Construct PDA
+        Stack<String> stack = new Stack<>();
+        stack.push("$");
+        stack.push("S");
+        List<String> derivation = new ArrayList<>();
+        derivation.add("S");
+
+        // Parse input using LL(1) parsing table
+        for (int i = 0; i < input.length() && !stack.isEmpty(); ) {
+            String top = stack.pop();
+            char currentChar = input.charAt(i);
+            if (top.equals(currentChar + "")) {
+                i++;
+            } else if (LL1table.containsKey(top) && LL1table.get(top).containsKey(currentChar + "")) {
+                String rule = LL1table.get(top).get(currentChar + "");
+                if (!rule.equals("")) {
+                    String[] rhs = rule.split("");
+                    for (int j = rhs.length - 1; j >= 0; j--) {
+                        stack.push(rhs[j]);
+                    }
+                    derivation.add(rule);
+                }
+            } else {
+                derivation.add("ERROR");
+                break;
+            }
+        }
+
+        // Check if the input was fully parsed and return left-most derivation
+        return (stack.isEmpty() && derivation.size() == input.length() + 1) ? String.join(" ", derivation) : "ERROR";
+    }
+}
